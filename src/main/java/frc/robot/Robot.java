@@ -4,15 +4,14 @@
 
 package frc.robot;
 
-import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj.DriverStation;
+import com.revrobotics.REVLibError;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
-import frc.robot.subsystems.drivetrain.Drivetrain;
-import monologue.Logged;
-import monologue.Monologue;
+import frc.robot.subsystems.Drivetrain;
+import frc.robot.util.Elastic;
+import frc.robot.util.MotorUtil.IntiializationError;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -20,11 +19,11 @@ import monologue.Monologue;
  * the package after creating this project, you must also update the build.gradle file in the
  * project.
  */
-public class Robot extends TimedRobot implements Logged {
+public class Robot extends TimedRobot {
     // Subsystems
     Drivetrain drivetrain;
 
-    FieldModel fieldModel;
+    EnviornmentModel enviornment;
 
     /**
      * This function is run when the robot is first started up and should be used for any
@@ -32,12 +31,26 @@ public class Robot extends TimedRobot implements Logged {
      */
     @Override
     public void robotInit() {
-        fieldModel = new FieldModel();
-
+        System.out.println(REVLibError.kCANDisconnected.name());
         // Instantiate Subsystems
-        drivetrain = new Drivetrain(fieldModel);
+        while (true) {
+            Alert failedInitializationAlert = new Alert("", AlertType.kInfo);
 
-        Monologue.setupMonologue(this, "/Robot", false, false);
+            try {
+                drivetrain = new Drivetrain();
+                break;
+            } catch (IntiializationError error) {
+                drivetrain.close();
+
+                Elastic.sendAlert(error.generateNotification());
+                failedInitializationAlert = error.generateAlert();
+                failedInitializationAlert.set(true);
+            } finally {
+                failedInitializationAlert.set(false);
+            }
+        }
+
+        enviornment = new EnviornmentModel();
     }
 
     /**
@@ -49,44 +62,20 @@ public class Robot extends TimedRobot implements Logged {
      */
     @Override
     public void robotPeriodic() {
-        // fieldModel.update();
+        // Update enviornment before commands are run and after subssytem periodics are run.
+        enviornment.update();
 
         // Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
         // commands, running already-scheduled commands, removing finished or interrupted commands,
         // and running subsystem periodic() methods.  This must be called from the robot's periodic
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
-        Monologue.updateAll();
-    }
-
-    @Override
-    public void disabledPeriodic() {
-        Monologue.setFileOnly(DriverStation.isFMSAttached());
     }
 
     @Override
     public void teleopInit() {
         CommandScheduler.getInstance().cancelAll();
 
-        CommandPS5Controller driverController = new CommandPS5Controller(0);
-
-        // Setup Driver Controls
-        drivetrain.setDefaultCommand(
-                drivetrain.fieldOrientedDriveCommand(
-                        () -> MathUtil.applyDeadband(driverController.getLeftY(), 0.1),
-                        () -> MathUtil.applyDeadband(driverController.getLeftX(), 0.1),
-                        () ->
-                                driverController.getHID().getPOV() == -1
-                                        ? MathUtil.applyDeadband(-driverController.getRightX(), 0.1)
-                                        : Constants.ANGLE_ALIGNMENT_KP
-                                                * (Rotation2d.fromDegrees(
-                                                                driverController.getHID().getPOV())
-                                                        .minus(
-                                                                fieldModel
-                                                                        .getThisRobot()
-                                                                        .pose
-                                                                        .getRotation())
-                                                        .getRadians())));
-        driverController.cross().whileTrue(drivetrain.setCrossCommand());
+        // CommandXboxController driverController = new CommandXboxController(0);
     }
 }

@@ -5,6 +5,7 @@
 package frc.robot;
 
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.Threads;
 
 /**
  * Do NOT add any static variables to this class, or any initialization at all. Unless you know what
@@ -20,6 +21,8 @@ public final class Main {
      * <p>If you change your main robot class, change the parameter type.
      */
     public static void main(String... args) {
+        // Give main thread RT priority
+        Threads.setCurrentThreadPriority(true, 15);
         RobotBase.startRobot(Robot::new);
     }
 }
