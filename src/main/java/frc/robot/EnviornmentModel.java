@@ -1,37 +1,25 @@
 package frc.robot;
 
-import edu.wpi.first.math.geometry.Pose2d;
+import com.ctre.phoenix6.hardware.Pigeon2;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.util.sendable.Sendable;
+import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.wpilibj2.command.Subsystem;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
-public class EnviornmentModel implements Subsystem {
-    @Setter
-    @Getter
-    @AllArgsConstructor
-    public static class Robot {
-        Pose2d pose;
-    }
+public class EnviornmentModel implements Subsystem, Sendable {
+    @Getter Rotation2d robotHeading;
 
-    private final Robot thisRobot;
+    Pigeon2 pigeon2;
 
     public EnviornmentModel() {
-        thisRobot = new Robot(new Pose2d());
+        pigeon2 = new Pigeon2(2, "rio");
     }
 
-    public void updateDrivetrainData(Pose2d odometryEstimate) {
-        thisRobot.pose = odometryEstimate;
+    public void update() {
+        robotHeading = pigeon2.getRotation2d();
     }
 
-    public void update() {}
-
-    public Rotation2d getRobotRotation() {
-        return thisRobot.pose.getRotation();
-    }
-
-    public Pose2d getRobotPose() {
-        return thisRobot.pose;
-    }
+    @Override
+    public void initSendable(SendableBuilder builder) {}
 }

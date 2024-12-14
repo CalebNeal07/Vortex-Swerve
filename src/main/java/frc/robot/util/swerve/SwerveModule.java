@@ -1,34 +1,51 @@
 package frc.robot.util.swerve;
 
-import com.revrobotics.spark.SparkFlex;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
-import com.revrobotics.spark.SparkMax;
-import frc.robot.util.MotorUtil;
-import frc.robot.util.MotorUtil.IntiializationError;
+import static edu.wpi.first.units.Units.MetersPerSecond;
 
-public class SwerveModule implements AutoCloseable {
+import com.revrobotics.AbsoluteEncoder;
+import com.revrobotics.RelativeEncoder;
+import com.revrobotics.spark.SparkBase.ControlType;
+import com.revrobotics.spark.SparkClosedLoopController;
+import com.revrobotics.spark.SparkFlex;
+import com.revrobotics.spark.SparkMax;
+import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.SwerveModuleState;
+
+public class SwerveModule {
     public static final int FRONT_LEFT = 0;
-    public static final int FRONT_RIGHT = 0;
-    public static final int BACK_LEFT = 0;
-    public static final int BACK_RIGHT = 0;
+    public static final int FRONT_RIGHT = 1;
+    public static final int BACK_LEFT = 2;
+    public static final int BACK_RIGHT = 3;
 
     SparkFlex driveMotorController;
     SparkMax rotationMotorController;
 
-    public SwerveModule(String module, int driveMotorID, int rotationMotorID)
-            throws IntiializationError {
+    RelativeEncoder driveMotorEncoder;
+    AbsoluteEncoder rotationAbsoluteEncoder;
 
-        driveMotorController =
-                MotorUtil.initializeSparkFlex(
-                        String.format(module + " Drive"), rotationMotorID, null);
+    SparkClosedLoopController driveController;
+    SparkClosedLoopController rotationController;
 
-        rotationMotorController = new SparkMax(rotationMotorID, MotorType.kBrushless);
+    public SwerveModule(SparkFlex driveMotorController, SparkMax rotationMotorController) {
+        this.driveMotorController = driveMotorController;
+        this.rotationMotorController = rotationMotorController;
+
+        driveMotorEncoder = driveMotorController.getEncoder();
+        rotationAbsoluteEncoder = rotationMotorController.getAbsoluteEncoder();
+
+        driveMotorController.getClosedLoopController();
     }
 
-    @Override
-    public void close() {
-        if (this.driveMotorController != null) {
-            driveMotorController.close();
-        }
+    public SwerveModuleState getModuleState() {
+        return new SwerveModuleState(
+                MetersPerSecond.of(driveMotorEncoder.getVelocity()),
+                Rotation2d.fromRadians(rotationAbsoluteEncoder.getPosition()));
+    }
+
+    public void commandModuleState(SwerveModuleState state) {
+        driveController.setReference(
+                state.speedMetersPerSecond, ControlType.kMAXMotionVelocityControl);
+        rotationController.setReference(
+                state.angle.getRadians(), ControlType.kMAXMotionPositionControl);
     }
 }

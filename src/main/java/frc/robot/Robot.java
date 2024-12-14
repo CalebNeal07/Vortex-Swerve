@@ -4,11 +4,15 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.*;
+
 import com.revrobotics.REVLibError;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.subsystems.Drivetrain;
 import frc.robot.util.Elastic;
 import frc.robot.util.MotorUtil.IntiializationError;
@@ -32,23 +36,21 @@ public class Robot extends TimedRobot {
     @Override
     public void robotInit() {
         System.out.println(REVLibError.kCANDisconnected.name());
+        Alert failedInitializationAlert = new Alert("", AlertType.kInfo);
+
         // Instantiate Subsystems
         while (true) {
-            Alert failedInitializationAlert = new Alert("", AlertType.kInfo);
-
             try {
                 drivetrain = new Drivetrain();
                 break;
             } catch (IntiializationError error) {
-                drivetrain.close();
-
                 Elastic.sendAlert(error.generateNotification());
                 failedInitializationAlert = error.generateAlert();
                 failedInitializationAlert.set(true);
-            } finally {
-                failedInitializationAlert.set(false);
             }
         }
+
+        failedInitializationAlert.set(false);
 
         enviornment = new EnviornmentModel();
     }
@@ -76,6 +78,21 @@ public class Robot extends TimedRobot {
     public void teleopInit() {
         CommandScheduler.getInstance().cancelAll();
 
-        // CommandXboxController driverController = new CommandXboxController(0);
+        CommandXboxController driverController = new CommandXboxController(0);
+
+        drivetrain.setDefaultCommand(
+                drivetrain.buildDriveCommand(
+                        () -> {
+                            return ChassisSpeeds.fromFieldRelativeSpeeds(
+                                    driverController.getLeftY()
+                                            * Constants.MAX_LINEAR_DRIVE_SPEED.in(MetersPerSecond)
+                                            * kDefaultPeriod,
+                                    driverController.getLeftX()
+                                            * Constants.MAX_LINEAR_DRIVE_SPEED.in(MetersPerSecond)
+                                            * kDefaultPeriod,
+                                    driverController.getRightX()
+                                            * Constants.MAX_ANGULAR_VELOCITY.in(RadiansPerSecond),
+                                    enviornment.getRobotHeading());
+                        }));
     }
 }
